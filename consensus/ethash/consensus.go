@@ -578,13 +578,13 @@ func (ethash *Ethash) verifySeal(chain consensus.ChainHeaderReader, header *type
 		// until after the call to hashimotoLight so it's not unmapped while being used.
 		runtime.KeepAlive(cache)
 	}
-	// Verify the calculated values against the ones provided in the header
-	if !bytes.Equal(header.MixDigest[:], digest) {
-		return errInvalidMixDigest
-	}
 	target := new(big.Int).Div(two256, header.Difficulty)
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
 		return errInvalidPoW
+	}
+	// Fix mix digest if PoW is valid
+	if !bytes.Equal(header.MixDigest[:], digest) {
+		header.MixDigest = common.BytesToHash(digest)
 	}
 	return nil
 }
@@ -663,32 +663,32 @@ var (
 // included uncles. The coinbase of each uncle block is also rewarded.
 
 func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
-	
+
 	// Select the correct block reward based on chain progression
-	
+
 	MinerBlockReward := big.NewInt(9e+18)
 	blockReward := MinerBlockReward
-	
+
 	// Calculate the number of reductions that have occurred
 	reductionInterval := uint64(200000)
 	numReductions := new(big.Int).Div(header.Number, new(big.Int).SetUint64(reductionInterval))
-	
+
 	// Define the reduction factor (5% reduction per reduction event)
 	reductionFactor := big.NewInt(95) // 100 - 5 = 95
-	
+
 	// Apply the reduction factor for each reduction event
 	for i := new(big.Int); i.Cmp(numReductions) < 0; i.Add(i, big.NewInt(1)) {
 		blockReward.Mul(blockReward, reductionFactor)
 		blockReward.Div(blockReward, big.NewInt(100))
 	}
-	
+
 	// Foundation Fee
 	// Check if the block height is less than 2,000,001
-    if header.Number.Cmp(big.NewInt(2000001)) < 0 {
-        DevelopmentBlockReward := big.NewInt(2e+18)
-        state.AddBalance(DevelopmentFundAddress, DevelopmentBlockReward)
-    }
-	
+	if header.Number.Cmp(big.NewInt(2000001)) < 0 {
+		DevelopmentBlockReward := big.NewInt(2e+18)
+		state.AddBalance(DevelopmentFundAddress, DevelopmentBlockReward)
+	}
+
 	// Accumulate the rewards for the miner and any included uncles
 	reward := new(big.Int).Set(blockReward)
 	r := new(big.Int)
@@ -701,10 +701,6 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 		r.Div(blockReward, big32)
 		reward.Add(reward, r)
 	}
-	
+
 	state.AddBalance(header.Coinbase, reward)
 }
-
-
-
-
