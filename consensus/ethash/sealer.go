@@ -222,9 +222,10 @@ type sealTask struct {
 
 // mineResult wraps the pow solution parameters for the specified block.
 type mineResult struct {
-	nonce     types.BlockNonce
-	mixDigest common.Hash
-	hash      common.Hash
+	nonce      types.BlockNonce
+	mixDigest  common.Hash
+	hash       common.Hash
+	extraNonce []byte
 
 	errc chan error
 }
